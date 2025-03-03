@@ -47,10 +47,10 @@ def predict(X, weights, activation):
         a = activation(z)
         if activation == sigmoid:
             pred = 1 if a >= 0.5 else 0
-        elif callable(activation) and activation.__code__.co_code == (lambda x: np.maximum(0, x)).__code__.co_code:
-            pred = 1 if a >= 0.5 else 0
-        else:
+        elif activation == np.tanh:
             pred = 1 if a >= 0 else 0
+        else:
+            pred = 1 if a >= 0.5 else 0
         preds.append(pred)
     return np.array(preds)
 
