@@ -6,15 +6,22 @@ from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 
-def load_data(file_path='environmental_data.csv'):
+def load_data(file_path):
     # Load the dataset from a CSV file
     data = pd.read_csv(file_path)
     return data
 
-def preprocess_data(data, target_column):
+def preprocess_data(data):
+    # Drop non-numeric and non-relevant columns
+    drop_columns = ['Incident_ID', 'Date', 'Location', 'Cause']
+    data = data.drop(columns=drop_columns, errors='ignore')
+    
+    # Handle missing values (fill with mean)
+    data = data.fillna(data.mean())
+    
     # Separate features and target
-    X = data.drop(target_column, axis=1)
-    y = data[target_column]
+    X = data.drop(columns=['Estimated_Financial_Loss (Million $)'])
+    y = data['Estimated_Financial_Loss (Million $)']
     return X, y
 
 def build_model(input_dim):
@@ -25,36 +32,24 @@ def build_model(input_dim):
     model.add(Dense(1))  # Output layer for regression
 
     # Compile the model
-    model.compile(loss='mean_squared_error', optimizer='adam', metrics=['mae', 'mse'])
+    model.compile(loss='mean_squared_error', optimizer='adam', metrics=['mae'])
     return model
 
 def plot_training_history(history):
     # Plot training history
-    plt.figure(figsize=(12, 5))
-
-    plt.subplot(1, 2, 1)
     plt.plot(history.history['mae'], label='Training MAE')
     plt.plot(history.history['val_mae'], label='Validation MAE')
     plt.xlabel('Epoch')
     plt.ylabel('Mean Absolute Error')
     plt.legend()
     plt.title('Training and Validation MAE')
-
-    plt.subplot(1, 2, 2)
-    plt.plot(history.history['mse'], label='Training MSE')
-    plt.plot(history.history['val_mse'], label='Validation MSE')
-    plt.xlabel('Epoch')
-    plt.ylabel('Mean Squared Error')
-    plt.legend()
-    plt.title('Training and Validation MSE')
-
-    plt.tight_layout()
     plt.show()
 
-def main(file_path='environmental_data.csv', target_column='target'):
+def main():
     # Load and preprocess the data
+    file_path = 'environment.csv'  # Ensure the correct path
     data = load_data(file_path)
-    X, y = preprocess_data(data, target_column)
+    X, y = preprocess_data(data)
 
     # Split the data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -69,9 +64,8 @@ def main(file_path='environmental_data.csv', target_column='target'):
     history = model.fit(X_train, y_train, epochs=100, batch_size=8, validation_split=0.2, verbose=0)
 
     # Evaluate the model
-    loss, mae, mse = model.evaluate(X_test, y_test, verbose=0)
+    loss, mae = model.evaluate(X_test, y_test, verbose=0)
     print(f'Test Mean Absolute Error: {mae:.2f}')
-    print(f'Test Mean Squared Error: {mse:.2f}')
 
     # Plot training history
     plot_training_history(history)
