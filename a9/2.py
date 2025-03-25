@@ -1,36 +1,58 @@
-from sklearn import datasets
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix
+import pandas as pd
 import numpy as np
-import seaborn as sns
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 
-class KNN:
-    def __init__(self, k=3):
-        self.k = k
-    def fit(self, X_train, y_train):
-        self.X_train = X_train
-        self.y_train = y_train
-    def predict(self, X_test):
-        return np.array([self._predict(x) for x in X_test])
-    def _predict(self, x):
-        distances = np.sqrt(np.sum((self.X_train - x)**2, axis=1))
-        k_indices = np.argsort(distances)[:self.k]
-        k_labels = self.y_train[k_indices]
-        return np.bincount(k_labels).argmax()
+# Load customer segmentation dataset (using a sample dataset)
+data = pd.read_csv('Mall_Customers.csv')
 
-iris = datasets.load_iris()
-X, y = iris.data, iris.target
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Select relevant features for clustering
+features = ['Annual Income (k$)', 'Spending Score (1-100)']
+X = data[features]
 
-knn = KNN(k=5)
-knn.fit(X_train, y_train)
-y_pred = knn.predict(X_test)
+# Standardize the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
 
-cm = confusion_matrix(y_test, y_pred)
-plt.figure(figsize=(8, 6))
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-plt.xlabel('Predicted')
-plt.ylabel('True')
-plt.title('Multi-class Confusion Matrix')
+# Determine optimal number of clusters using silhouette score
+max_clusters = 10
+silhouette_scores = []
+
+for n_clusters in range(2, max_clusters + 1):
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+    kmeans.fit(X_scaled)
+    score = silhouette_score(X_scaled, kmeans.labels_)
+    silhouette_scores.append(score)
+
+# Plot silhouette scores
+plt.figure(figsize=(10, 5))
+plt.plot(range(2, max_clusters + 1), silhouette_scores, marker='o')
+plt.title('Silhouette Score vs Number of Clusters')
+plt.xlabel('Number of Clusters')
+plt.ylabel('Silhouette Score')
+plt.show()
+
+# Choose the optimal number of clusters (highest silhouette score)
+optimal_clusters = silhouette_scores.index(max(silhouette_scores)) + 2
+
+# Apply K-Means with optimal clusters
+kmeans = KMeans(n_clusters=optimal_clusters, random_state=42)
+data['Cluster'] = kmeans.fit_predict(X_scaled)
+
+# Visualize the clusters
+plt.figure(figsize=(10, 6))
+scatter = plt.scatter(data['Annual Income (k$)'], data['Spending Score (1-100)'], 
+                      c=data['Cluster'], cmap='viridis')
+plt.title(f'Customer Segmentation (K-Means, {optimal_clusters} Clusters)')
+plt.xlabel('Annual Income (k$)')
+plt.ylabel('Spending Score (1-100)')
+plt.colorbar(scatter, label='Cluster')
+
+# Cluster analysis
+cluster_summary = data.groupby('Cluster')[features].mean()
+print("Cluster Summary:\n", cluster_summary)
+
+plt.tight_layout()
 plt.show()
